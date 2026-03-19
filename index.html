@@ -289,6 +289,10 @@ hr.div{border:none;border-top:1px solid #1e293b;margin:24px 0;}
   <div class="modal">
     <h3 id="modal-phase-title">Confirm Your Decision</h3>
     <div class="modal-choice" id="modal-choice-text"></div>
+    <div id="modal-rationale-wrap">
+      <label style="font-size:.85rem;color:#64748b;display:block;margin-bottom:6px;">Why did you make this choice? <span style="opacity:.6;">(optional)</span></label>
+      <textarea id="modal-reason" placeholder="Share your reasoning..." style="width:100%;padding:11px;border-radius:8px;border:1px solid #1e3a5f;background:#111827;color:#e2e8f0;resize:vertical;min-height:72px;font-size:.93rem;outline:none;"></textarea>
+    </div>
     <div id="modal-consequence" style="display:none;">
       <div class="cons-box" id="modal-cons-text"></div>
       <div class="delta-row" id="modal-deltas"></div>
@@ -614,6 +618,8 @@ function selectOpt(opt){
   G.showingCons=false;
   document.getElementById('modal-phase-title').textContent='Confirm Your Decision';
   document.getElementById('modal-choice-text').innerHTML=`<strong>Option ${opt.l}:</strong> ${opt.text}`;
+  document.getElementById('modal-reason').value='';
+  document.getElementById('modal-rationale-wrap').style.display='block';
   document.getElementById('modal-consequence').style.display='none';
   document.getElementById('modal-back-btn').style.display='';
   document.getElementById('modal-ok-btn').textContent='Confirm Decision →';
@@ -634,11 +640,13 @@ function confirmChoice(){
   const opt=G.pending;
   const ch=CHAPTERS[G.chIdx];
   const dec=ch.decisions[G.dIdx];
-  G.history.push({chId:ch.id,brand:ch.brand,dIdx:G.dIdx,decTitle:dec.title,letter:opt.l,text:opt.text,inv:opt.inv,esg:opt.esg,real:dec.real});
+  const reason=document.getElementById('modal-reason').value.trim();
+  G.history.push({chId:ch.id,brand:ch.brand,dIdx:G.dIdx,decTitle:dec.title,letter:opt.l,text:opt.text,inv:opt.inv,esg:opt.esg,real:dec.real,reason});
   G.inv=Math.max(0,G.inv+opt.inv);
   G.esg=Math.max(0,G.esg+opt.esg);
 
   G.showingCons=true;
+  document.getElementById('modal-rationale-wrap').style.display='none';
   document.getElementById('modal-phase-title').textContent='Consequence';
   document.getElementById('modal-cons-text').textContent=opt.cons;
   document.getElementById('modal-deltas').innerHTML=pill(opt.inv,'Investor')+pill(opt.esg,'ESG');
@@ -758,8 +766,13 @@ function switchTab(id){
 function submitResult(){
   const prof=archetype();
   const choices={};
-  G.history.forEach(h=>{ choices[h.chId+(h.dIdx+1)]=h.letter; });
-  api({action:'submit',name:G.name,email:G.email,inv:G.inv,esg:G.esg,archetype:prof.title,choices});
+  const reasons={};
+  G.history.forEach(h=>{
+    const k=h.chId+(h.dIdx+1);
+    choices[k]=h.letter;
+    if(h.reason) reasons[k]=h.reason;
+  });
+  api({action:'submit',name:G.name,email:G.email,inv:G.inv,esg:G.esg,archetype:prof.title,choices,reasons});
 }
 
 function loadLeaderboard(){
