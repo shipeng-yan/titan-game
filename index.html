@@ -126,7 +126,8 @@ body{display:flex;flex-direction:column;align-items:center;padding:0 0 60px;}
 .tl-body{flex:1;}
 .tl-brand{font-size:.82rem;color:#7eb8f7;font-weight:600;margin-bottom:2px;}
 .tl-choice{font-size:.93rem;color:#e2e8f0;}
-.tl-real{font-size:.83rem;color:#64748b;margin-top:2px;}
+.tl-reason{font-size:.85rem;color:#94a3b8;font-style:italic;margin-top:4px;padding:6px 10px;background:#1e293b;border-radius:6px;border-left:2px solid #3b82f6;}
+.tl-real{font-size:.83rem;color:#64748b;margin-top:6px;}
 .reveal-card{padding:14px 18px;margin-bottom:10px;background:#0f172a;border-radius:10px;border-left:3px solid #f59e0b;}
 .reveal-brand{font-weight:600;color:#7eb8f7;margin-bottom:3px;}
 .reveal-real{color:#94a3b8;font-size:.91rem;}
@@ -269,6 +270,7 @@ hr.div{border:none;border-top:1px solid #1e293b;margin:24px 0;}
 
   <hr class="div"/>
   <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="exportSummary()">📄 Export My Summary</button>
     <button class="btn btn-secondary" onclick="location.reload()">Play Again</button>
   </div>
 </div>
@@ -736,6 +738,7 @@ function renderFinal(){
       <div class="tl-body">
         <div class="tl-brand">Brand ${h.chId}: ${h.brand} — ${h.decTitle}</div>
         <div class="tl-choice">You chose <strong>${h.letter}</strong>: ${h.text.split('—')[0].trim()}</div>
+        ${h.reason?`<div class="tl-reason">💬 "${h.reason}"</div>`:''}
         <div class="tl-real">${pill(h.inv,'Investor')} ${pill(h.esg,'ESG')} &nbsp; Real choice: <strong>${h.real}</strong> — ${match?'<span style="color:#34d399">✓ Matched</span>':'<span style="color:#f87171">✗ Differed</span>'}</div>
       </div>
     </div>`;
@@ -866,6 +869,114 @@ function loadDistribution(){
     html+=`<div style="color:#475569;font-size:.82rem;margin-top:8px;">Based on ${total} completed game${total!==1?'s':''}. <span style="color:#34d399">■ You</span> &nbsp; <span style="color:#f59e0b">■ Unilever's real choice</span></div>`;
     document.getElementById('dist-content').innerHTML=html;
   });
+}
+
+// =========================================================
+// EXPORT
+// =========================================================
+function exportSummary(){
+  const prof = archetype();
+  const date = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+
+  let decisionsHtml = '';
+  G.history.forEach(h => {
+    const match = h.letter === h.real;
+    const ch = CHAPTERS.find(c => c.id === h.chId);
+    decisionsHtml += `
+      <div class="ex-decision">
+        <div class="ex-dec-title">${h.decTitle}</div>
+        <table class="ex-table">
+          <tr><td class="ex-label">Your choice</td><td><strong>${h.letter}</strong> — ${h.text.split('—')[0].trim()}</td></tr>
+          ${h.reason ? `<tr><td class="ex-label">Your reasoning</td><td class="ex-reason">${h.reason}</td></tr>` : ''}
+          <tr><td class="ex-label">Unilever's choice</td><td><strong>${h.real}</strong> ${match ? '<span class="ex-match">✓ You matched</span>' : '<span class="ex-diff">✗ You differed</span>'}</td></tr>
+          <tr><td class="ex-label">Score impact</td><td>Investor: ${h.inv > 0 ? '+' : ''}${h.inv} &nbsp; ESG: ${h.esg > 0 ? '+' : ''}${h.esg}</td></tr>
+        </table>
+      </div>`;
+  });
+
+  let revealsHtml = '';
+  CHAPTERS.forEach(ch => {
+    revealsHtml += `
+      <div class="ex-reveal">
+        <div class="ex-reveal-brand">Brand ${ch.id}: ${ch.brand}</div>
+        <div class="ex-reveal-real">${ch.realCompany}</div>
+        <div class="ex-reveal-story">${ch.outcome.what.replace(/\n/g,'<br>')}</div>
+      </div>`;
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Titan Challenge — ${G.name} — Summary</title>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;max-width:800px;margin:0 auto;padding:32px 24px;color:#1e293b;line-height:1.6;}
+  h1{font-size:1.8rem;color:#1e3a5f;margin-bottom:4px;}
+  .meta{color:#64748b;font-size:.9rem;margin-bottom:28px;}
+  .section-title{font-size:1.1rem;font-weight:700;color:#1e3a5f;border-bottom:2px solid #e2e8f0;padding-bottom:6px;margin:28px 0 16px;}
+  .ceo-box{background:#f8fafc;border-radius:10px;padding:18px 22px;border-left:4px solid #f59e0b;margin-bottom:8px;}
+  .ceo-type{font-size:1.3rem;font-weight:700;color:#b45309;}
+  .ceo-desc{color:#475569;font-size:.93rem;margin-top:6px;}
+  .scores{display:flex;gap:16px;margin-bottom:28px;}
+  .score-box{padding:12px 20px;border-radius:8px;text-align:center;flex:1;}
+  .score-box.inv{background:#eff6ff;border:1px solid #bfdbfe;}
+  .score-box.esg{background:#f0fdf4;border:1px solid #bbf7d0;}
+  .score-box .val{font-size:1.8rem;font-weight:700;}
+  .score-box .lbl{font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.06em;}
+  .inv .val{color:#1d4ed8;} .esg .val{color:#15803d;}
+  .ex-decision{border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;margin-bottom:14px;}
+  .ex-dec-title{font-weight:700;color:#1e3a5f;margin-bottom:10px;font-size:.97rem;}
+  .ex-table{width:100%;border-collapse:collapse;font-size:.9rem;}
+  .ex-table tr td{padding:5px 8px;vertical-align:top;}
+  .ex-label{color:#64748b;width:140px;font-size:.82rem;padding-top:6px;}
+  .ex-reason{color:#334155;font-style:italic;}
+  .ex-match{color:#15803d;font-weight:600;margin-left:6px;}
+  .ex-diff{color:#b91c1c;font-weight:600;margin-left:6px;}
+  .ex-reveal{border-left:3px solid #f59e0b;padding:12px 16px;margin-bottom:14px;background:#fffbeb;border-radius:0 8px 8px 0;}
+  .ex-reveal-brand{font-weight:700;color:#1e3a5f;margin-bottom:4px;}
+  .ex-reveal-real{color:#b45309;font-size:.9rem;margin-bottom:8px;}
+  .ex-reveal-story{color:#475569;font-size:.88rem;line-height:1.65;}
+  .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:.8rem;text-align:center;}
+  @media print{body{padding:16px;} .no-print{display:none;}}
+</style>
+</head>
+<body>
+  <h1>🏛 Titan Challenge — Personal Summary</h1>
+  <div class="meta">${G.name} &nbsp;·&nbsp; ${G.email} &nbsp;·&nbsp; ${date}</div>
+
+  <div class="section-title">Your CEO Archetype</div>
+  <div class="ceo-box">
+    <div class="ceo-type">${prof.title}</div>
+    <div class="ceo-desc">${prof.desc}</div>
+  </div>
+
+  <div class="section-title">Final Scores</div>
+  <div class="scores">
+    <div class="score-box inv"><div class="lbl">Investor Confidence</div><div class="val">${G.inv}</div></div>
+    <div class="score-box esg"><div class="lbl">ESG Credibility</div><div class="val">${G.esg}</div></div>
+  </div>
+
+  <div class="section-title">Your Decisions &amp; Reasoning</div>
+  ${decisionsHtml}
+
+  <div class="section-title">The Real Companies — What Actually Happened</div>
+  ${revealsHtml}
+
+  <div class="footer">Titan Challenge &nbsp;·&nbsp; Copyright © Shipeng Yan &nbsp;·&nbsp; Generated ${date}</div>
+
+  <div class="no-print" style="margin-top:24px;text-align:center;">
+    <button onclick="window.print()" style="padding:10px 28px;background:#1e56b0;color:#fff;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">🖨 Print / Save as PDF</button>
+  </div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Titan-Challenge-${G.name.replace(/\s+/g,'-')}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // keyboard shortcuts
